@@ -1,34 +1,28 @@
-"""Main entrypoint for the conversational retrieval graph.
-
-This module defines the core structure and functionality of the conversational
-retrieval graph. It includes the main graph definition, state management,
-and key functions for processing user inputs, generating queries, retrieving
-relevant documents, and formulating responses.
-"""
-
 from datetime import datetime, timezone
+from langchain_core.documents import Document
+from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, ToolMessage
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import RunnableConfig
+from langgraph.graph import StateGraph, START, END
+from pydantic import BaseModel
 from typing import cast
 
-from langchain_core.documents import Document
-from langchain_core.messages import BaseMessage
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.pydantic_v1 import BaseModel
-from langchain_core.runnables import RunnableConfig
-from langgraph.graph import StateGraph
-
-from langgraph_mcp.retriever import make_retriever
 from langgraph_mcp.configuration import Configuration
+from langgraph_mcp import mcp_wrapper as mcp
+from langgraph_mcp.retriever import make_retriever
 from langgraph_mcp.state import InputState, State
-from langgraph_mcp.utils import format_docs, get_message_text, load_chat_model
+from langgraph_mcp.utils import get_message_text, load_chat_model, format_docs
+
 
 NOTHING_RELEVANT = "Nothing relevant found"  # When available MCP servers seem to be irrelevant for the query
+IDK_RESPONSE = "Unable to assist with this query."  # Default response where the current MCP Server can't help
 
+##################  MCP Server Router: Sub-graph Components  ###################
 
 class SearchQuery(BaseModel):
     """Search the indexed documents for a query."""
 
     query: str
-
 
 async def generate_routing_query(
     state: State, *, config: RunnableConfig
@@ -82,7 +76,6 @@ async def generate_routing_query(
             "queries": [generated.query],
         }
 
-
 async def retrieve(
     state: State, *, config: RunnableConfig
 ) -> dict[str, list[Document]]:
@@ -103,7 +96,6 @@ async def retrieve(
     with make_retriever(config) as retriever:
         response = await retriever.ainvoke(state.queries[-1], config)
         return {"retrieved_docs": response}
-
 
 async def route(
     state: State, *, config: RunnableConfig
@@ -130,25 +122,138 @@ async def route(
         config,
     )
     response = await model.ainvoke(message_value, config)
+    if response.content == NOTHING_RELEVANT:
+        return {
+            "messages": [response]
+        }
+    return {"current_mcp_server": response.content}
+
+def decide_mcp_or_not(state: State) -> str:
+    """Decide whether to route to MCP server processing or not"""
+    if state.current_mcp_server:
+        return "mcp_orchestrator"
+    return END
+
+##################  MCP Server Router: Sub-graph Components  ###################
+
+async def mcp_orchestrator(state: State, *, config: RunnableConfig) -> dict[str, list[BaseMessage]]:
+    """ Orchestrates MCP server processing. """
+    # Fetch the current MCP server from state
+    server_name = state.current_mcp_server
+
+    # Fetch mcp server config
+    configuration = Configuration.from_runnable_config(config)
+    mcp_servers = configuration.mcp_server_config["mcpServers"]
+    server_config = mcp_servers[server_name]
+
+    # Fetch tools from the MCP server
+    tools = await mcp.apply(server_name, server_config, mcp.GetTools())
+
+    # Prepare the LLM
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", configuration.mcp_orchestrator_system_prompt),
+            ("placeholder", "{messages}"),
+        ]
+    )
+    model = load_chat_model(configuration.mcp_orchestrator_model)
+    message_value = await prompt.ainvoke(
+        {
+            "messages": state.messages,
+            "idk_response": IDK_RESPONSE,
+            "system_time": datetime.now(tz=timezone.utc).isoformat(),
+        },
+        config,
+    )
+    
+    # Bind tools to model and invoke
+    response = await model.bind_tools(tools).ainvoke(message_value, config)
+
+    if response.content == IDK_RESPONSE:
+        # If the response is IDK_RESPONSE, we will generate a new routing query.
+        return {"current_mcp_server": None}
+
     return {"messages": [response]}
 
 
-# Define a new graph (It's just a pipe)
+async def mcp_tool_call(state: State, *, config: RunnableConfig) -> dict[str, list[BaseMessage]]:
+    """ Call the MCP server tool."""
+    # Fetch the current MCP server from state
+    server_name = state.current_mcp_server
 
+    # Fetch mcp server config
+    configuration = Configuration.from_runnable_config(config)
+    mcp_servers = configuration.mcp_server_config["mcpServers"]
+    server_config = mcp_servers[server_name]
+
+    # Execute MCP server Tool
+    tool_call = state.messages[-1].tool_calls[0]
+    tool_output = await mcp.apply(server_name, server_config, mcp.RunTool(tool_call['name'], **tool_call['args']))
+    return {"messages": [ToolMessage(content=tool_output, tool_call_id=tool_call['id'])]}
+
+def route_tools(state: State) -> str:
+    """
+    Route to the mcp_tool_call if last message has tool calls.
+    Otherwise, route to the END.
+    """
+    if state.messages[-1].__class__ == HumanMessage:
+        return "generate_routing_query"
+    if state.messages[-1].tool_calls:
+        return "mcp_tool_call"
+    return END
+
+
+#############################  Subgraph decider  ###############################
+def decide_subgraph(state: State) -> str:
+    """
+    Route to MCP Server Router sub-graph if there is no state.current_mcp_server
+    else route to MCP Server processing sub-graph.
+    """
+    if not state.current_mcp_server:
+        return "generate_routing_query"
+    return "mcp_orchestrator"
+
+
+##################################  Wiring  ####################################
 
 builder = StateGraph(State, input=InputState, config_schema=Configuration)
 
 builder.add_node(generate_routing_query)
 builder.add_node(retrieve)
 builder.add_node(route)
-builder.add_edge("__start__", "generate_routing_query")
+builder.add_node(mcp_orchestrator)
+builder.add_node(mcp_tool_call)
+
+builder.add_conditional_edges(
+    START,
+    decide_subgraph,
+    {
+        "generate_routing_query": "generate_routing_query",
+        "mcp_orchestrator": "mcp_orchestrator",
+    }
+)
 builder.add_edge("generate_routing_query", "retrieve")
 builder.add_edge("retrieve", "route")
-
-# Finally, we compile it!
-# This compiles it into a graph you can invoke and deploy.
+builder.add_conditional_edges(
+    "route",
+    decide_mcp_or_not,
+    {
+        "mcp_orchestrator": "mcp_orchestrator",
+        END: END,
+    }
+)
+builder.add_conditional_edges(
+    "mcp_orchestrator",
+    route_tools,
+    {
+        "mcp_tool_call": "mcp_tool_call",
+        "generate_routing_query": "generate_routing_query",
+        END: END,
+    }
+)
+builder.add_edge("mcp_tool_call", "mcp_orchestrator")
 graph = builder.compile(
     interrupt_before=[],  # if you want to update the state before calling the tools
     interrupt_after=[],
 )
-graph.name = "RouterGraph"
+graph.name = "AssistantGraph"
