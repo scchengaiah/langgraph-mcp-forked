@@ -118,6 +118,7 @@ async def route(
             "messages": state.messages,
             "retrieved_docs": retrieved_docs,
             "nothing_relevant": NOTHING_RELEVANT,
+            "ambiguity_prefix": AMBIGUITY_PREFIX,
             "system_time": datetime.now(tz=timezone.utc).isoformat(),
         },
         config,
