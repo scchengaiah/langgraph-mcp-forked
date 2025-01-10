@@ -16,6 +16,7 @@ from langgraph_mcp.utils import get_message_text, load_chat_model, format_docs
 
 NOTHING_RELEVANT = "Nothing relevant found"  # When available MCP servers seem to be irrelevant for the query
 IDK_RESPONSE = "Unable to assist with this query."  # Default response where the current MCP Server can't help
+AMBIGUITY_PREFIX = "Ambiguity:"  # Prefix to indicate ambiguity when asking the user for clarification
 
 ##################  MCP Server Router: Sub-graph Components  ###################
 
@@ -122,7 +123,7 @@ async def route(
         config,
     )
     response = await model.ainvoke(message_value, config)
-    if response.content == NOTHING_RELEVANT:
+    if response.content == NOTHING_RELEVANT or response.content.startswith(AMBIGUITY_PREFIX):
         return {
             "messages": [response]
         }
