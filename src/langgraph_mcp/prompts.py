@@ -8,7 +8,7 @@ ROUTING_QUERY_SYSTEM_PROMPT = """Generate query to search the right Model Contex
 
 System time: {system_time}"""
 
-RROUTING_RESPONSE_SYSTEM_PROMPT = """You are a helpful AI assistant responsible for selecting the most relevant Model Context Protocol (MCP) server for the user's query. Use the following retrieved server documents to make your decision:
+ROUTING_RESPONSE_SYSTEM_PROMPT = """You are a helpful AI assistant responsible for selecting the most relevant Model Context Protocol (MCP) server for the user's query. Use the following retrieved server documents to make your decision:
 
 {retrieved_docs}
 
