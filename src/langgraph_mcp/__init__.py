@@ -27,7 +27,7 @@ For detailed configuration options and usage instructions, refer to the Configur
 and individual component documentation within the retrieval_graph package.
 """  # noqa
 
-from retrieval_graph.graph import graph
-from retrieval_graph.index_graph import graph as index_graph
+from langgraph_mcp.router_graph import graph as router_graph
+from langgraph_mcp.build_router_graph import graph as build_router_graph
 
-__all__ = ["graph", "index_graph"]
+__all__ = ["router_graph", "build_router_graph"]

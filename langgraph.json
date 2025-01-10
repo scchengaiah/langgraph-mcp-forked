@@ -1,8 +1,8 @@
 {
   "dependencies": ["."],
   "graphs": {
-    "indexer": "./src/retrieval_graph/index_graph.py:graph",
-    "retrieval_graph": "./src/retrieval_graph/graph.py:graph"
+    "build_router_graph": "./src/langgraph_mcp/build_router_graph.py:graph",
+    "router_graph": "./src/langgraph_mcp/router_graph.py:graph"
   },
   "env": ".env"
 }

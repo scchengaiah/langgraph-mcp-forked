@@ -14,7 +14,7 @@ from langchain_core.embeddings import Embeddings
 from langchain_core.runnables import RunnableConfig
 from langchain_core.vectorstores import VectorStoreRetriever
 
-from retrieval_graph.configuration import Configuration, IndexConfiguration
+from langgraph_mcp.configuration import Configuration
 
 ## Encoder constructors
 
@@ -41,8 +41,7 @@ def make_milvus_retriever(
 
     vstore = Milvus (
         embedding_function=embedding_model,
-        connection_args={"uri": os.environ["MILVUS_DB"]},
-        auto_id=True
+        connection_args={"uri": os.environ["MILVUS_DB"]}
     )
     yield vstore.as_retriever()
 

@@ -1,4 +1,4 @@
-from retrieval_graph.configuration import Configuration
+from langgraph_mcp.configuration import Configuration
 
 
 def test_configuration_from_none() -> None:

@@ -1,3 +1,6 @@
+.milvus.db.lock
+milvus.db
+
 .langgraph_api/
 
 # Byte-compiled / optimized / DLL files

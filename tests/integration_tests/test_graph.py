@@ -4,7 +4,7 @@ import pytest
 from langchain_core.runnables import RunnableConfig
 from langsmith import expect, unit
 
-from retrieval_graph import graph, index_graph
+from langgraph_mcp import graph, index_graph
 
 
 @pytest.mark.asyncio

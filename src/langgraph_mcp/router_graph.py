@@ -16,12 +16,12 @@ from langchain_core.pydantic_v1 import BaseModel
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import StateGraph
 
-from retrieval_graph.retriever import make_retriever
-from retrieval_graph.configuration import Configuration
-from retrieval_graph.state import InputState, State
-from retrieval_graph.utils import format_docs, get_message_text, load_chat_model
+from langgraph_mcp.retriever import make_retriever
+from langgraph_mcp.configuration import Configuration
+from langgraph_mcp.state import InputState, State
+from langgraph_mcp.utils import format_docs, get_message_text, load_chat_model
 
-# Define the function that calls the model
+NOTHING_RELEVANT = "Nothing relevant found"  # When available MCP servers seem to be irrelevant for the query
 
 
 class SearchQuery(BaseModel):
@@ -30,10 +30,10 @@ class SearchQuery(BaseModel):
     query: str
 
 
-async def generate_query(
+async def generate_routing_query(
     state: State, *, config: RunnableConfig
 ) -> dict[str, list[str]]:
-    """Generate a search query based on the current state and configuration.
+    """Generate a routing query based on the current state and configuration.
 
     This function analyzes the messages in the state and generates an appropriate
     search query. For the first message, it uses the user's input directly.
@@ -61,11 +61,11 @@ async def generate_query(
         # Feel free to customize the prompt, model, and other logic!
         prompt = ChatPromptTemplate.from_messages(
             [
-                ("system", configuration.query_system_prompt),
+                ("system", configuration.routing_query_system_prompt),
                 ("placeholder", "{messages}"),
             ]
         )
-        model = load_chat_model(configuration.query_model).with_structured_output(
+        model = load_chat_model(configuration.routing_query_model).with_structured_output(
             SearchQuery
         )
 
@@ -105,7 +105,7 @@ async def retrieve(
         return {"retrieved_docs": response}
 
 
-async def respond(
+async def route(
     state: State, *, config: RunnableConfig
 ) -> dict[str, list[BaseMessage]]:
     """Call the LLM powering our "agent"."""
@@ -113,23 +113,23 @@ async def respond(
     # Feel free to customize the prompt, model, and other logic!
     prompt = ChatPromptTemplate.from_messages(
         [
-            ("system", configuration.response_system_prompt),
+            ("system", configuration.routing_response_system_prompt),
             ("placeholder", "{messages}"),
         ]
     )
-    model = load_chat_model(configuration.response_model)
+    model = load_chat_model(configuration.routing_response_model)
 
     retrieved_docs = format_docs(state.retrieved_docs)
     message_value = await prompt.ainvoke(
         {
             "messages": state.messages,
             "retrieved_docs": retrieved_docs,
+            "nothing_relevant": NOTHING_RELEVANT,
             "system_time": datetime.now(tz=timezone.utc).isoformat(),
         },
         config,
     )
     response = await model.ainvoke(message_value, config)
-    # We return a list, because this will get added to the existing list
     return {"messages": [response]}
 
 
@@ -138,12 +138,12 @@ async def respond(
 
 builder = StateGraph(State, input=InputState, config_schema=Configuration)
 
-builder.add_node(generate_query)
+builder.add_node(generate_routing_query)
 builder.add_node(retrieve)
-builder.add_node(respond)
-builder.add_edge("__start__", "generate_query")
-builder.add_edge("generate_query", "retrieve")
-builder.add_edge("retrieve", "respond")
+builder.add_node(route)
+builder.add_edge("__start__", "generate_routing_query")
+builder.add_edge("generate_routing_query", "retrieve")
+builder.add_edge("retrieve", "route")
 
 # Finally, we compile it!
 # This compiles it into a graph you can invoke and deploy.
@@ -151,4 +151,4 @@ graph = builder.compile(
     interrupt_before=[],  # if you want to update the state before calling the tools
     interrupt_after=[],
 )
-graph.name = "RetrievalGraph"
+graph.name = "RouterGraph"
