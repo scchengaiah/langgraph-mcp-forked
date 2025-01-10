@@ -16,7 +16,7 @@ from langchain_core.pydantic_v1 import BaseModel
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import StateGraph
 
-from retrieval_graph import retrieval
+from retrieval_graph.retriever import make_retriever
 from retrieval_graph.configuration import Configuration
 from retrieval_graph.state import InputState, State
 from retrieval_graph.utils import format_docs, get_message_text, load_chat_model
@@ -100,7 +100,7 @@ async def retrieve(
         dict[str, list[Document]]: A dictionary with a single key "retrieved_docs"
         containing a list of retrieved Document objects.
     """
-    with retrieval.make_retriever(config) as retriever:
+    with make_retriever(config) as retriever:
         response = await retriever.ainvoke(state.queries[-1], config)
         return {"retrieved_docs": response}
 

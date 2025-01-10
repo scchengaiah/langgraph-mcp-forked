@@ -4,4 +4,4 @@
 
 [LangGraph](https://langchain-ai.github.io/langgraph/) is a framework designed to enable seamless integration of language models into complex workflows and applications. It emphasizes modularity and flexibility. Workflows are represented as graphs. Nodes correspond to actions, tools, or model queries. Edges define the flow of information between them. LangGraph provides a structured yet dynamic way to execute tasks, making it ideal for writing AI applications involving natural language understanding, automation, and decision-making.
 
-We'll now try to transform this retrieval template to a langgraph MCP solution tempalte
+We'll now try to transform this retrieval template to a langgraph MCP solution template.
