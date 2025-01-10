@@ -43,6 +43,21 @@ langgraph dev
 
 `langgraph dev` should automatically take you to: https://smith.langchain.com/studio/?baseUrl=http://locahost:2024
 
+## Try
+
+### Build the Router
+- Go to **Studio UI**: https://smith.langchain.com/studio/?baseUrl=http://locahost:2024
+- Select the **build_router** graph (if not already selected)
+- Go to **Configurations > MCP Server Config**
+- Add your MCP server configurations in the standard format. [Here's a sample](sample-mcp-server-config.json).
+- Provide a starting status (e.g., refresh)
+
+### Use Assistant
+
+- Select the **assist** graph
+- And ask away!
+
+
 ## MCP Wrapper
 
 [`mcp_wrapper.py`](src/langgraph_mcp/mcp_wrapper.py) employs a Strategy Pattern using an abstract base class (`MCPSessionFunction`) to define a common interface for executing various operations on MCP servers. The pattern facilitates:
@@ -50,6 +65,8 @@ langgraph dev
 	- `MCPSessionFunction` defines an async `__call__` method as a contract for all session functions.
 2.	Concrete Implementations:
     - `RoutingDescription` class implements fetching routing information based on tools, prompts, and resources.
+    - `GetTools` class implements fetching tools for the MCP server and transforming them to the format consumable by LangGraph.
+    - `RunTool` class implements invoking a tool on MCP server and returning its output.
 3.	Processor Function:
 	- `apply` serves as a unified executor. It:
 	    - Initializes a session using `stdio_client` from `mcp` library.

@@ -51,6 +51,18 @@ class Configuration:
         },
     )
 
+    mcp_orchestrator_system_prompt: str = field(
+        default=prompts.MCP_ORCHESTRATOR_SYSTEM_PROMPT,
+        metadata={"description": "The system prompt used for MCP server orchestration."},
+    )
+
+    mcp_orchestrator_model: Annotated[str, {"__template_metadata__": {"kind": "llm"}}] = field(
+        default="openai/gpt-4o",
+        metadata={
+            "description": "The language model used for MCP server orchestration. Should be in the form: provider/model-name."
+        },
+    )
+
     @classmethod
     def from_runnable_config(
         cls: Type[T], config: Optional[RunnableConfig] = None

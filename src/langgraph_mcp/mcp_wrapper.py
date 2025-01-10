@@ -1,7 +1,10 @@
+import os
 from abc import ABC, abstractmethod
 from typing import Any
 from typing import Any
+from langchain_core.tools import ToolException
 from mcp import ClientSession, ListPromptsResult, ListResourcesResult, ListToolsResult, StdioServerParameters, stdio_client
+import pydantic_core
 
 
 # Abstract base class for MCP session functions
@@ -48,11 +51,40 @@ class RoutingDescription(MCPSessionFunction):
 
         return server_name, content
 
+class GetTools(MCPSessionFunction):
+    async def __call__(self, server_name: str, session: ClientSession) -> list[dict[str, Any]]:
+        tools = await session.list_tools()
+        if tools is None:
+            return []
+        return [
+            {
+                'type': 'function',
+                'function': {
+                    'name': tool.name,
+                    'description': tool.description or "",
+                    'parameters': tool.inputSchema or {}
+                }
+            }
+            for tool in tools.tools
+        ]
+
+class RunTool(MCPSessionFunction):
+    def __init__(self, tool_name: str, **kwargs):
+        self.tool_name = tool_name
+        self.kwargs = kwargs
+
+    async def __call__(self, server_name: str, session: ClientSession) -> Any:
+        result = await session.call_tool(self.tool_name, arguments=self.kwargs)
+        content = pydantic_core.to_json(result.content).decode()
+        if result.isError:
+            raise ToolException(content)
+        return content
+
 async def apply(server_name: str, server_config: dict, fn: MCPSessionFunction) -> Any:
     server_params = StdioServerParameters(
         command=server_config["command"],
         args=server_config["args"],
-        env=server_config.get("env")  # Use None to let default_environment be built
+        env={**os.environ, **(server_config.get("env") or {})}
     )
     print(f"Starting session with (server: {server_name})")
     async with stdio_client(server_params) as (read, write):
