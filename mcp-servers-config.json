@@ -24,7 +24,7 @@
                 "-y",
                 "@modelcontextprotocol/server-filesystem",
                 "/Users/user/Desktop",
-                "/Users/user/fun/langgraph-mcp"
+                "/Users/user/Desktop/current/langgraph-mcp"
             ]
         }
     }
