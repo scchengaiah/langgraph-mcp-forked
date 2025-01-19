@@ -104,3 +104,4 @@ The assistant graph is implemented in [`assistant_graph.py`](src/langgraph_mcp/a
 
 Here's an end to end video!
 
+https://github.com/user-attachments/assets/cf5b9932-33a0-4627-98ca-022979bfb2e7
