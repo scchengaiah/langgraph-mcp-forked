@@ -4,7 +4,7 @@
 
 [LangGraph](https://langchain-ai.github.io/langgraph/) is a framework designed to enable seamless integration of language models into complex workflows and applications. It emphasizes modularity and flexibility. Workflows are represented as graphs. Nodes correspond to actions, tools, or model queries. Edges define the flow of information between them. LangGraph provides a structured yet dynamic way to execute tasks, making it ideal for writing AI applications involving natural language understanding, automation, and decision-making.
 
-We'll now try to transform this retrieval template to a langgraph MCP solution template.
+In this work, we combine LangGraph with MCP to build a conversational AI solution template. You may configure the solution with your MCP server configurations and run the [**build_router** graph](src/langgraph_mcp/build_router_graph.py). It collects information on tools, prompts, and resources for all the MCP servers that are part of the specified configurations, and generates a vector index. You may then use the [**assist** graph](src/langgraph_mcp/assistant_graph.py) as your assistant, facilitating conversations based on your MCP servers.
 
 ## Setup
 
@@ -46,16 +46,23 @@ langgraph dev
 ## Try
 
 ### Build the Router
+
 - Go to **Studio UI**: https://smith.langchain.com/studio/?baseUrl=http://locahost:2024
 - Select the **build_router** graph (if not already selected)
 - Go to **Configurations > MCP Server Config**
 - Add your MCP server configurations in the standard format. [Here's a sample](sample-mcp-server-config.json).
 - Provide a starting status (e.g., refresh)
 
+
+![Build Router](media/build-router.gif)
+
+[`build_router_graph.py`](src/langgraph_mcp/build_router_graph.py) collects information on tools, prompts, and resources offered by each MCP server using the `mcp_wrapper.py`. Details on the wrapper [in this later section](#mcp-wrapper). It generates *routing instruction documents* for each server , embeds them, and indexes in a vector db.
+
 ### Use Assistant
 
-- Select the **assist** graph
-- And ask away!
+[`assistant_graph.py`](src/langgraph_mcp/assistant_graph.py) has all the logic for the assistant! Here's how the Assistant works:
+
+![LangGraph Assistant for MCP](media/langgraph-assistant-mcp.gif)
 
 
 ## MCP Wrapper
