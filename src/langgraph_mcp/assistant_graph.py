@@ -15,6 +15,7 @@ from langgraph_mcp.state import InputState, State
 from langgraph_mcp.utils.utils import get_message_text, load_chat_model, format_docs
 from langgraph_mcp.utils.openapi_spec import OpenAPISpec
 from langgraph_mcp.utils.openapi_utils import openapi_spec_to_openai_fn
+from langgraph.checkpoint.memory import MemorySaver
 
 NOTHING_RELEVANT = "No MCP server with an appropriate tool to address current context"  # When available MCP servers seem to be irrelevant for the query
 IDK_RESPONSE = "No appropriate tool available."  # Default response where the current MCP Server can't help
@@ -24,7 +25,40 @@ AMBIGUITY_PREFIX = (
 )
 
 ##################  MCP Server Router: Sub-graph Components  ###################
+##################  Memory Node  ###################
+async def summarize_conversation(state: State, *, config: RunnableConfig) -> dict[str, str]:
+    """
+    Summarizes the conversation history (all messages in state),
+    loads any previously saved memory, appends the new summary,
+    saves the combined memory persistently, and stores it in state.summarized_memory.
+    """
+    messages = state.messages
+    if not len(messages):
+        return {"memory": []}
+    else:
+        existing_summary = getattr(state, "summarized_memory", "") or ""
+        new_message_content = messages[-1].content
+        configuration = Configuration.from_runnable_config(config)
+        summarization_prompt_text = configuration.summarize_conversation_system_prompt
+        summary_prompt = ChatPromptTemplate.from_messages([
+           ("system", summarization_prompt_text)
+        ])
 
+        prompt_input = {
+           "existing_summary": existing_summary,
+           "latest_message": new_message_content
+        }
+    
+        summarization_model = load_chat_model(configuration.summarize_conversation_model)
+        prompt_output = await summary_prompt.ainvoke(prompt_input, config)
+        summary_response = await summarization_model.ainvoke(prompt_output, config)
+    
+        new_summary = summary_response.content.strip()
+    
+        state.summarized_memory = new_summary
+        return {
+            "memory": state.summarized_memory
+        }
 
 class SearchQuery(BaseModel):
     """Search the indexed documents for a query."""
@@ -112,10 +146,12 @@ async def route(
 ) -> dict[str, list[BaseMessage]]:
     """Call the LLM powering our "agent"."""
     configuration = Configuration.from_runnable_config(config)
+    memory_summary = state.summarized_memory
+    updated_system_prompt = configuration.routing_response_system_prompt + "\nConversation Summary: " + memory_summary
     # Feel free to customize the prompt, model, and other logic!
     prompt = ChatPromptTemplate.from_messages(
         [
-            ("system", configuration.routing_response_system_prompt),
+            ("system", updated_system_prompt),
             ("placeholder", "{messages}"),
         ]
     )
@@ -217,11 +253,12 @@ async def mcp_orchestrator(
         )
     else:
         tools = await mcp.apply(server_name, server_config, mcp.GetTools())
-
+    memory_summary = state.summarized_memory
+    updated_system_prompt = configuration.mcp_orchestrator_system_prompt + "\nConversation Summary: " + memory_summary
     # Prepare the LLM
     prompt = ChatPromptTemplate.from_messages(
         [
-            ("system", configuration.mcp_orchestrator_system_prompt),
+            ("system", updated_system_prompt),
             ("placeholder", "{messages}"),
         ]
     )
@@ -378,19 +415,21 @@ def decide_subgraph(state: State) -> str:
 builder = StateGraph(State, input=InputState, config_schema=Configuration)
 
 builder.add_node(generate_routing_query)
+builder.add_node(summarize_conversation)
 builder.add_node(retrieve)
 builder.add_node(route)
 builder.add_node(mcp_orchestrator)
 builder.add_node(refine_tool_call)
 builder.add_node(mcp_tool_call)
 
+builder.add_edge(START, "summarize_conversation")
 builder.add_conditional_edges(
-    START,
+    "summarize_conversation",
     decide_subgraph,
     {
         "generate_routing_query": "generate_routing_query",
         "mcp_orchestrator": "mcp_orchestrator",
-    },
+    }
 )
 builder.add_edge("generate_routing_query", "retrieve")
 builder.add_edge("retrieve", "route")
