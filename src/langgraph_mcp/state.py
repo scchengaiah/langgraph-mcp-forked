@@ -101,3 +101,8 @@ class State(InputState):
     current_mcp_server: str = field(default="")
 
     current_tool: dict[str, str] = field(default_factory=dict)
+
+    summarized_memory: str = field(
+        default="",
+        metadata={"description": "Persistent conversation memory."}
+    )
