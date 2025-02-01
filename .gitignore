@@ -127,6 +127,8 @@ celerybeat.pid
 *.sage.py
 
 # Environments
+mcp-servers-config.json
+.mcp-servers-config.json
 .env
 .venv
 env/

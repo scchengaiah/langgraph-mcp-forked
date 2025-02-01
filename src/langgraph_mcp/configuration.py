@@ -62,7 +62,19 @@ class Configuration:
             "description": "The language model used for MCP server orchestration. Should be in the form: provider/model-name."
         },
     )
+    
+    tool_refiner_model: Annotated[str, {"__template_metadata__": {"kind": "llm"}}] = field(
+        default="openai/gpt-4o",
+        metadata={
+            "description": "The language model used for rebinding the tool call. Should be in the form: provider/model-name."
+        },
+    )
 
+    tool_refiner_prompt: str = field(
+        default=prompts.TOOL_REFINER_PROMPT,
+        metadata={"description": "The system prompt used for tool refining orchestration."},
+    )
+    
     @classmethod
     def from_runnable_config(
         cls: Type[T], config: Optional[RunnableConfig] = None
@@ -83,6 +95,9 @@ class Configuration:
     
     def get_mcp_server_descriptions(self) -> list[tuple[str, str]]:
         """Get a list of descriptions of the MCP servers in the specified configuration."""
-        return [(server_name, server_config['description']) for server_name, server_config in self.mcp_server_config["mcpServers"].items()]
+        return [
+            (server_name, server_config['description'])
+            for server_name, server_config in self.mcp_server_config["mcpServers"].items()
+        ]
 
 T = TypeVar("T", bound=Configuration)

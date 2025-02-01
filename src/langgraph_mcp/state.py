@@ -14,6 +14,7 @@ from langgraph.graph import add_messages
 
 #########################  Router Builder State  ###############################
 
+
 @dataclass(kw_only=True)
 class BuilderState:
     status: str = field(
@@ -22,7 +23,6 @@ class BuilderState:
             "description": "The status of the builder state.",
         },
     )
-
 
 
 #############################  Router State  ###################################
@@ -99,3 +99,5 @@ class State(InputState):
     """Populated by the retriever. This is a list of documents that the agent can reference."""
 
     current_mcp_server: str = field(default="")
+
+    current_tool: dict[str, str] = field(default_factory=dict)
