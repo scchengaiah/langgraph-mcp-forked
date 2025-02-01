@@ -39,9 +39,21 @@ class Configuration:
         },
     )
 
+    summarize_conversation_model: Annotated[str, {"__template_metadata__": {"kind": "llm"}}] = field(
+        default="openai/gpt-4o",
+        metadata={
+            "description": "The language model used for summarizing conversations. Should be in the form: provider/model-name."
+        },
+    )
+
     routing_response_system_prompt: str = field(
         default=prompts.ROUTING_RESPONSE_SYSTEM_PROMPT,
         metadata={"description": "The system prompt used for generating routing response."},
+    )
+
+    summarize_conversation_system_prompt: str = field(
+        default=prompts.SUMMARIZE_CONVERSATION_PROMPT,
+        metadata={"description": "The system prompt used for summarizing conversation."},
     )
 
     routing_response_model: Annotated[str, {"__template_metadata__": {"kind": "llm"}}] = field(
