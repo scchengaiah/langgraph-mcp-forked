@@ -104,10 +104,18 @@ async def generate_routing_query(
         model = load_chat_model(
             configuration.routing_query_model
         ).with_structured_output(SearchQuery)
+        
+        summary_and_last_user = f"""
+        Conversation summary:
+        {state.summarized_memory}
 
+        Latest user message:
+        {messages[-1].content}
+        """
+        
         message_value = await prompt.ainvoke(
             {
-                "messages": state.messages,
+                "messages": summary_and_last_user,
                 "queries": "\n- ".join(state.queries),
                 "system_time": datetime.now(tz=timezone.utc).isoformat(),
             },
@@ -156,11 +164,11 @@ async def route(
         ]
     )
     model = load_chat_model(configuration.routing_response_model)
-
+    memory_summary = state.summarized_memory
     retrieved_docs = format_docs(state.retrieved_docs)
     message_value = await prompt.ainvoke(
         {
-            "messages": state.messages,
+            "messages": f"Conversation summary:\n{memory_summary}",
             "retrieved_docs": retrieved_docs,
             "nothing_relevant": NOTHING_RELEVANT,
             "ambiguity_prefix": AMBIGUITY_PREFIX,
@@ -265,7 +273,7 @@ async def mcp_orchestrator(
     model = load_chat_model(configuration.mcp_orchestrator_model)
     message_value = await prompt.ainvoke(
         {
-            "messages": state.messages,
+            "messages": f"Conversation summary:\n{memory_summary}",
             "idk_response": IDK_RESPONSE,
             "other_servers": list_other_servers(
                 configuration.get_mcp_server_descriptions(), current_server=server_name
