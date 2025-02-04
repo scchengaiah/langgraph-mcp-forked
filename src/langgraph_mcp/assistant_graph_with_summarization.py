@@ -457,4 +457,4 @@ graph = builder.compile(
     interrupt_before=[],  # if you want to update the state before calling the tools
     interrupt_after=[],
 )
-graph.name = "AssistantGraph"
+graph.name = "AssistantGraphwithsummarization"
