@@ -71,3 +71,20 @@ Steps to follow:
 
 System time: {system_time}
 """
+
+SUMMARIZE_CONVERSATION_PROMPT = """You are an intelligent summarization assistant.
+
+You have an **existing summary of the conversation** so far, in chronological order:
+{existing_summary}
+
+Here is the **latest message** to append to the summary:
+{latest_message}
+
+Your goals:
+1. **Preserve** the chronological order of the conversation in the summary.
+2. **Accurately** reflect the latest message's content without adding or omitting key details.
+3. Maintain **conciseness** while including information needed to ensure **future accuracy** in any subsequent steps or tool usage.
+4. **Integrate** the newest message into the existing summary so it reads smoothly and logically.
+
+Now, provide an **updated summary** of the conversation in chronological order:
+"""
