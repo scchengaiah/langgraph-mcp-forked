@@ -1,10 +1,12 @@
 import asyncio
+import traceback
+
 from langchain_core.documents import Document
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import StateGraph
 
-from langgraph_mcp.configuration import Configuration
 from langgraph_mcp import mcp_wrapper as mcp
+from langgraph_mcp.configuration import Configuration
 from langgraph_mcp.retriever import make_retriever
 from langgraph_mcp.state import BuilderState
 
@@ -42,12 +44,15 @@ async def build_router(state: BuilderState, *, config: RunnableConfig):
         # Store the documents in the retriever
         with make_retriever(config) as retriever:
             if configuration.retriever_provider == "milvus":
-                retriever.add_documents(documents, ids=[doc.metadata["id"] for doc in documents])
+                retriever.add_documents(
+                    documents, ids=[doc.metadata["id"] for doc in documents]
+                )
             else:
                 await retriever.aadd_documents(documents)
 
         status = "success"
     except Exception as e:
+        print(traceback.format_exc())
         print(f"Exception in run: {e}")
 
     return {"status": status}
