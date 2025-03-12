@@ -1,5 +1,10 @@
 # Instructions
 
+>**Pre-requisites:**
+>
+> - Use Linux environment to test this project. If you are windows, then use WSL2.
+> - Make sure you have `node` and `npm` installed in your system. Follow this [link](https://learn.microsoft.com/en-us/windows/dev-environment/javascript/nodejs-on-wsl) to install `node` and `npm`.
+
 After following the `Development Setup` in [README.md](README.md), you can run the following commands to start the development server and open the LangGraph UI.
 
 ```bash
